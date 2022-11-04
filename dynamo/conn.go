@@ -25,11 +25,15 @@ type typeable interface {
 
 // Conn is the connection to the Dynamodb
 type Conn[T typeable] struct {
-	db        *dynamodb.Client
-	tableName string
+	db   *dynamodb.Client
+	conf DBConf
 }
 
-func New[T typeable](tableName string) *Conn[T] {
+type DBConf struct {
+	TableName string
+}
+
+func New[T typeable](conf DBConf) *Conn[T] {
 	// Load the Shared AWS Configuration (~/.aws/config)
 	cfg, err := loadConfig()
 	if err != nil {
@@ -39,7 +43,8 @@ func New[T typeable](tableName string) *Conn[T] {
 	svc := dynamodb.NewFromConfig(cfg)
 
 	return &Conn[T]{
-		db: svc,
+		db:   svc,
+		conf: conf,
 	}
 }
 
@@ -57,7 +62,7 @@ func loadConfig() (aws.Config, error) {
 
 func (conn *Conn[T]) FindByID(ctx context.Context, id string) (T, error) {
 	params := &dynamodb.GetItemInput{
-		TableName: aws.String(conn.tableName),
+		TableName: aws.String(conn.conf.TableName),
 		Key: map[string]types.AttributeValue{
 			"SK": &types.AttributeValueMemberS{Value: id},
 			"ID": &types.AttributeValueMemberS{Value: ""},
@@ -86,7 +91,7 @@ func (conn *Conn[T]) FindByID(ctx context.Context, id string) (T, error) {
 func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error) {
 	var t T
 	params := &dynamodb.QueryInput{
-		TableName:              aws.String(conn.tableName),
+		TableName:              aws.String(conn.conf.TableName),
 		Limit:                  aws.Int32(10),
 		KeyConditionExpression: aws.String("ID = :key"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
@@ -130,7 +135,7 @@ func (conn *Conn[T]) Create(ctx context.Context, r T) (T, error) {
 
 	params := &dynamodb.PutItemInput{
 		Item:      rs,
-		TableName: aws.String(conn.tableName),
+		TableName: aws.String(conn.conf.TableName),
 	}
 	if _, err := conn.db.PutItem(ctx, params); err != nil {
 		log.Println("unable to put message", err)
