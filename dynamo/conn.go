@@ -1,4 +1,4 @@
-package database
+package dynamo
 
 import (
 	"context"
