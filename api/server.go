@@ -3,56 +3,50 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/core"
 	"github.com/awslabs/aws-lambda-go-api-proxy/gorillamux"
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 	"go.uber.org/fx"
 )
 
-type Routable interface {
-	AddRoute(*mux.Router) *mux.Router
+type Route interface {
+	http.Handler
+	Pattern() string
 }
 
 type Server struct {
 	providers []any
-	routeType any
 }
 
-func (s *Server) RegisterService(i any, t ...any) {
-	if len(t) == 1 {
-		s.providers = append(s.providers, fx.Annotate(i, fx.As(t)))
-		return
-	}
+func (s *Server) Register(i any) {
 	s.providers = append(s.providers, i)
 }
 
-func (s *Server) RegisterRouter(i any) {
-	s.providers = append(s.providers,
-		fx.Annotate(
-			i,
-			fx.As(s.routeType),
-			fx.ResultTags(`group:"routes"`),
-		))
-}
-
-func (s *Server) RouteAggregator(i any) {
-	s.providers = append(s.providers,
-		fx.Annotate(
-			i,
-			fx.ParamTags(`group:"routes"`),
-		))
-}
-
-func NewServer(routeType any) *Server {
-	return &Server{
-		routeType: routeType,
+func AsComponent[T any](f any, paramTags string, resultTags string) any {
+	annotations := []fx.Annotation{}
+	if resultTags != "" {
+		annotations = append(annotations, fx.ResultTags(resultTags))
 	}
+	if paramTags != "" {
+		annotations = append(annotations, fx.ParamTags(paramTags))
+	}
+	annotations = append(annotations, fx.As(new(T)))
+	log.Info().Str("result_tags", resultTags).Str("param_tags", paramTags).Type("type", f).Type("as", new(T)).Msg("registering service...")
+	return fx.Annotate(
+		f,
+		annotations...,
+	)
+}
+
+func NewServer() *Server {
+	return &Server{}
 }
 
 func (s *Server) Run() {
-
 	handler := fx.Annotate(NewAPIGatewayHandler)
 	s.providers = append(s.providers, handler)
 	fx.New(
@@ -63,7 +57,7 @@ func (s *Server) Run() {
 	).Run()
 }
 
-type Handler interface {
+type LambdaHandler interface {
 	Handle(context.Context, core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error)
 }
 
@@ -71,7 +65,7 @@ type APIGatewayHandler struct {
 	adapter *gorillamux.GorillaMuxAdapter
 }
 
-func NewAPIGatewayHandler(router *mux.Router) Handler {
+func NewAPIGatewayHandler(router *mux.Router) LambdaHandler {
 
 	adapter := gorillamux.New(router)
 	return &APIGatewayHandler{
@@ -80,10 +74,10 @@ func NewAPIGatewayHandler(router *mux.Router) Handler {
 }
 
 func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error) {
-	request.Version1().Path = fmt.Sprintf("/v1%s", request.Version1().Path)
+	fmt.Println(request.Version1().Path)
 	return s.adapter.ProxyWithContext(ctx, request)
 }
 
-func function(h Handler) {
+func function(h LambdaHandler) {
 	lambda.Start(h.Handle)
 }

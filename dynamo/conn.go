@@ -8,7 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/holmes89/go-common/query"
@@ -19,12 +18,16 @@ var (
 	ErrNotFound = errors.New("entity not found")
 )
 
-type typeable interface {
-	Type() string
+type Serializable[T any] interface {
+	Serialize() (map[string]types.AttributeValue, error)
+	Deserialize(map[string]types.AttributeValue) (T, error)
+	DeserializeList([]map[string]types.AttributeValue) ([]T, error)
+	PK() string
+	SK(*string) string
 }
 
 // Conn is the connection to the Dynamodb
-type Conn[T typeable] struct {
+type Conn[T Serializable[T]] struct {
 	db   *dynamodb.Client
 	conf DBConf
 }
@@ -33,7 +36,7 @@ type DBConf struct {
 	TableName string
 }
 
-func New[T typeable](conf DBConf) *Conn[T] {
+func New[T Serializable[T]](conf DBConf) *Conn[T] {
 	// Load the Shared AWS Configuration (~/.aws/config)
 	cfg, err := loadConfig()
 	if err != nil {
@@ -61,11 +64,12 @@ func loadConfig() (aws.Config, error) {
 }
 
 func (conn *Conn[T]) FindByID(ctx context.Context, id string) (T, error) {
+	var t T
 	params := &dynamodb.GetItemInput{
 		TableName: aws.String(conn.conf.TableName),
 		Key: map[string]types.AttributeValue{
-			"SK": &types.AttributeValueMemberS{Value: id},
-			"ID": &types.AttributeValueMemberS{Value: ""},
+			"SK": &types.AttributeValueMemberS{Value: t.SK(&id)},
+			"PK": &types.AttributeValueMemberS{Value: t.PK()},
 		},
 	}
 
@@ -80,7 +84,8 @@ func (conn *Conn[T]) FindByID(ctx context.Context, id string) (T, error) {
 		return rs, errors.New("unable to fetch ")
 	}
 
-	if err := attributevalue.UnmarshalMap(resp.Item, &rs); err != nil {
+	rs, err = t.Deserialize(resp.Item)
+	if err != nil {
 		log.Println("unable to unmarshal ", err)
 		return rs, errors.New("failed to scan ")
 	}
@@ -93,9 +98,9 @@ func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error
 	params := &dynamodb.QueryInput{
 		TableName:              aws.String(conn.conf.TableName),
 		Limit:                  aws.Int32(10),
-		KeyConditionExpression: aws.String("ID = :key"),
+		KeyConditionExpression: aws.String("PK = :key"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":key": &types.AttributeValueMemberS{Value: t.Type()},
+			":key": &types.AttributeValueMemberS{Value: t.PK()},
 		},
 		ScanIndexForward: aws.Bool(false),
 	}
@@ -110,24 +115,18 @@ func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error
 		log.Println("unable to fetch ", err)
 		return entities, errors.New("unable to fetch all ")
 	}
-	if err := attributevalue.UnmarshalListOfMaps(resp.Items, &entities); err != nil {
+
+	entities, err = t.DeserializeList(resp.Items)
+	if err != nil {
 		log.Println("unable to unmarshal ", err)
 		return entities, errors.New("unable to fetch all ")
 	}
 	return entities, nil
 }
 
-type entity[T typeable] struct {
-	Entity     T
-	EntityType string `json:"-" dynamodbav:"ID"`
-}
-
 func (conn *Conn[T]) Create(ctx context.Context, r T) (T, error) {
-	e := entity[T]{
-		Entity:     r,
-		EntityType: r.Type(),
-	}
-	rs, err := attributevalue.MarshalMap(e)
+
+	rs, err := r.Serialize()
 	if err != nil {
 		log.Println("unable to marshal  message", err)
 		return r, errors.New("failed to insert ")
