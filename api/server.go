@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -73,9 +72,29 @@ func NewAPIGatewayHandler(router *mux.Router) LambdaHandler {
 	}
 }
 
+type contextKeys int
+
+const (
+	userUIDKey contextKeys = iota
+)
+
+// CtxWithUserUID will return a context with UID stored as value.
+func CtxWithUserUID(ctx context.Context, uid interface{}) context.Context {
+	return context.WithValue(ctx, userUIDKey, uid)
+}
+
+// UserUIDFromCtx will return user uid stored in context.
+func UserUIDFromCtx(ctx context.Context) string {
+	s, ok := ctx.Value(userUIDKey).(string)
+	if !ok {
+		return ""
+	}
+	return s
+}
+
 func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error) {
-	fmt.Println(request.Version1().Path)
-	return s.adapter.ProxyWithContext(ctx, request)
+	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.AccountID)
+	return s.adapter.ProxyWithContext(uctx, request)
 }
 
 func function(h LambdaHandler) {
