@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -97,6 +98,7 @@ func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableA
 	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.AccountID)
 	if devID := os.Getenv("DEV_ID"); devID != "" {
 		uctx = CtxWithUserUID(ctx, devID)
+		fmt.Println(request.Version1().Path)
 	}
 	return s.adapter.ProxyWithContext(uctx, request)
 }
