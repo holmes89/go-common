@@ -117,6 +117,7 @@ func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error
 	}
 
 	entities, err = t.DeserializeList(resp.Items)
+
 	if err != nil {
 		log.Println("unable to unmarshal ", err)
 		return entities, errors.New("unable to fetch all ")
@@ -136,6 +137,7 @@ func (conn *Conn[T]) Create(ctx context.Context, r T) (T, error) {
 		Item:      rs,
 		TableName: aws.String(conn.conf.TableName),
 	}
+
 	if _, err := conn.db.PutItem(ctx, params); err != nil {
 		log.Println("unable to put message", err)
 		return r, errors.New("failed to insert ")
