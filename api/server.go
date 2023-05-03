@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/core"
@@ -94,6 +95,9 @@ func UserUIDFromCtx(ctx context.Context) string {
 
 func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error) {
 	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.AccountID)
+	if devID := os.Getenv("DEV_ID"); devID != "" {
+		uctx = CtxWithUserUID(ctx, devID)
+	}
 	return s.adapter.ProxyWithContext(uctx, request)
 }
 
