@@ -93,6 +93,36 @@ func (conn *Conn[T]) FindByID(ctx context.Context, id string) (T, error) {
 	return rs, nil
 }
 
+func (conn *Conn[T]) FindByPkAndSk(ctx context.Context, pk string, sk string) (T, error) {
+	var t T
+	params := &dynamodb.GetItemInput{
+		TableName: aws.String(conn.conf.TableName),
+		Key: map[string]types.AttributeValue{
+			"SK": &types.AttributeValueMemberS{Value: sk},
+			"PK": &types.AttributeValueMemberS{Value: pk},
+		},
+	}
+
+	var rs T
+	resp, err := conn.db.GetItem(ctx, params)
+	if err != nil {
+		if errors.As(err, &notfound) {
+			log.Println("no resources found")
+			return rs, nil
+		}
+		log.Println("unable to find ", err)
+		return rs, errors.New("unable to fetch ")
+	}
+
+	rs, err = t.Deserialize(resp.Item)
+	if err != nil {
+		log.Println("unable to unmarshal ", err)
+		return rs, errors.New("failed to scan ")
+	}
+
+	return rs, nil
+}
+
 func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error) {
 	var t T
 	params := &dynamodb.QueryInput{
@@ -101,6 +131,38 @@ func (conn *Conn[T]) FindAll(ctx context.Context, filter query.Opts) ([]T, error
 		KeyConditionExpression: aws.String("PK = :key"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":key": &types.AttributeValueMemberS{Value: t.PK()},
+		},
+		ScanIndexForward: aws.Bool(false),
+	}
+
+	entities := make([]T, 0)
+	resp, err := conn.db.Query(ctx, params)
+	if err != nil {
+		if errors.As(err, &notfound) {
+			log.Println("no resources found")
+			return entities, nil
+		}
+		log.Println("unable to fetch ", err)
+		return entities, errors.New("unable to fetch all ")
+	}
+
+	entities, err = t.DeserializeList(resp.Items)
+
+	if err != nil {
+		log.Println("unable to unmarshal ", err)
+		return entities, errors.New("unable to fetch all ")
+	}
+	return entities, nil
+}
+
+func (conn *Conn[T]) FindByPk(ctx context.Context, pk string, filter query.Opts) ([]T, error) {
+	var t T
+	params := &dynamodb.QueryInput{
+		TableName:              aws.String(conn.conf.TableName),
+		Limit:                  aws.Int32(10),
+		KeyConditionExpression: aws.String("PK = :key"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":key": &types.AttributeValueMemberS{Value: pk},
 		},
 		ScanIndexForward: aws.Bool(false),
 	}
