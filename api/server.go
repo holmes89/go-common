@@ -27,16 +27,18 @@ func (s *Server) Register(i any) {
 	s.providers = append(s.providers, i)
 }
 
-func AsComponent[T any](f any, paramTags string, resultTags string) any {
+type Nameable interface {
+	Name() string
+}
+
+func AsComponent[T any](f Nameable, paramTags string) any {
 	annotations := []fx.Annotation{}
-	if resultTags != "" {
-		annotations = append(annotations, fx.ResultTags(resultTags))
-	}
+	annotations = append(annotations, fx.ResultTags(f.Name()))
 	if paramTags != "" {
 		annotations = append(annotations, fx.ParamTags(paramTags))
 	}
 	annotations = append(annotations, fx.As(new(T)))
-	log.Info().Str("result_tags", resultTags).Str("param_tags", paramTags).Type("type", f).Type("as", new(T)).Msg("registering service...")
+	log.Info().Str("result_tags", f.Name()).Str("param_tags", paramTags).Type("type", f).Type("as", new(T)).Msg("registering service...")
 	return fx.Annotate(
 		f,
 		annotations...,
