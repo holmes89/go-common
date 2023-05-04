@@ -25,6 +25,7 @@ type Server struct {
 }
 
 func (s *Server) Register(i any) {
+	log.Info().Interface("service", i).Msg("registering service...")
 	s.providers = append(s.providers, i)
 }
 
