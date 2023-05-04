@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/core"
@@ -34,7 +35,9 @@ func (s *Server) RegisterAll(i []any) {
 func AsComponent[T any](f any, paramTags string, resultTags string) any {
 	annotations := []fx.Annotation{}
 	if resultTags != "" {
-		annotations = append(annotations, fx.ResultTags(resultTags))
+		for _, t := range strings.Split(resultTags, ",") {
+			annotations = append(annotations, fx.ResultTags(t))
+		}
 	}
 	if paramTags != "" {
 		annotations = append(annotations, fx.ParamTags(paramTags))
