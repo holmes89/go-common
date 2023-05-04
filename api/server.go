@@ -29,7 +29,9 @@ func (s *Server) Register(i any) {
 }
 
 func (s *Server) RegisterAll(i []any) {
-	s.providers = append(s.providers, i...)
+	for _, i := range i {
+		s.Register(i)
+	}
 }
 
 func AsComponent[T any](f any, paramTags string, resultTags string) any {
