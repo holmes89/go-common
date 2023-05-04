@@ -27,6 +27,10 @@ func (s *Server) Register(i any) {
 	s.providers = append(s.providers, i)
 }
 
+func (s *Server) RegisterAll(i []any) {
+	s.providers = append(s.providers, i...)
+}
+
 func AsComponent[T any](f any, paramTags string, resultTags string) any {
 	annotations := []fx.Annotation{}
 	if resultTags != "" {
