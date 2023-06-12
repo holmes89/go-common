@@ -113,10 +113,16 @@ func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableA
 	}
 
 	uctx := ctx
-	if sub, ok := request.Version1().RequestContext.Authorizer["sub"]; ok {
-		uctx = CtxWithUserUID(ctx, sub)
+	if cmap, ok := request.Version1().RequestContext.Authorizer["claims"]; ok {
+		if claims, ok := cmap.(map[string]interface{}); ok {
+			if sub, ok := claims["sub"]; ok {
+				uctx = CtxWithUserUID(ctx, sub)
+			} else {
+				log.Warn().Msg("no subject on token")
+			}
+		}
 	} else {
-		log.Warn().Msg("no subject on token")
+		log.Warn().Msg("no claims on token")
 	}
 
 	if devID := os.Getenv("DEV_ID"); devID != "" {
