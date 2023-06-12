@@ -3,6 +3,7 @@ package dynamo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -194,6 +195,8 @@ func (conn *Conn[T]) Create(ctx context.Context, r T) (T, error) {
 		log.Println("unable to marshal  message", err)
 		return r, errors.New("failed to insert ")
 	}
+
+	fmt.Printf("%+v\n", rs)
 
 	params := &dynamodb.PutItemInput{
 		Item:      rs,
