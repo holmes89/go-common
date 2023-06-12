@@ -106,8 +106,11 @@ func UserUIDFromCtx(ctx context.Context) string {
 
 func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableAPIGatewayRequest) (*core.SwitchableAPIGatewayResponse, error) {
 	parts := strings.Split(request.Version1().Path, "/")
-	log.Info().Str("service", parts[0]).Str("path", request.Version1().Path).Msg("handling request")
-	request.Version1().Path = fmt.Sprintf("/%s", strings.Join(parts[1:], "/"))
+	if len(parts) > 2 {
+		path := strings.Join(parts[2:], "/")
+		log.Info().Str("service", parts[1]).Str("path", path).Msg("handling request")
+		request.Version1().Path = fmt.Sprintf("/%s", path)
+	}
 	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.AccountID)
 	if devID := os.Getenv("DEV_ID"); devID != "" {
 		uctx = CtxWithUserUID(ctx, devID)
