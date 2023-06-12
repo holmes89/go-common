@@ -111,6 +111,9 @@ func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableA
 		log.Info().Str("service", parts[1]).Str("path", path).Msg("handling request")
 		request.Version1().Path = fmt.Sprintf("/%s", path)
 	}
+	fmt.Printf("Identity: %+v\n", request.Version1().RequestContext.Identity)
+	fmt.Printf("AccountID: %+v\n", request.Version1().RequestContext.AccountID)
+	fmt.Printf("Authorizer: %+v\n", request.Version1().RequestContext.Authorizer)
 	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.CognitoIdentityID)
 	if devID := os.Getenv("DEV_ID"); devID != "" {
 		uctx = CtxWithUserUID(ctx, devID)
