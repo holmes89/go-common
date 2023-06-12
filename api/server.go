@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -112,9 +111,14 @@ func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableA
 		log.Info().Str("service", parts[1]).Str("path", path).Msg("handling request")
 		request.Version1().Path = fmt.Sprintf("/%s", path)
 	}
-	claims, _ := json.MarshalIndent(request.Version1().RequestContext.Authorizer, "", "	")
-	fmt.Printf("Authorizer: %+v\n", string(claims))
-	uctx := CtxWithUserUID(ctx, request.Version1().RequestContext.Identity.CognitoIdentityID)
+
+	uctx := ctx
+	if sub, ok := request.Version1().RequestContext.Authorizer["sub"]; ok {
+		uctx = CtxWithUserUID(ctx, sub)
+	} else {
+		log.Warn().Msg("no subject on token")
+	}
+
 	if devID := os.Getenv("DEV_ID"); devID != "" {
 		uctx = CtxWithUserUID(ctx, devID)
 		fmt.Println(request.Version1().Path)
