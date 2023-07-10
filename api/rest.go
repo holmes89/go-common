@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/holmes89/go-common/query"
 	"github.com/rs/zerolog/log"
@@ -190,12 +191,18 @@ func NewController(root string, handlers []Handler) Controller {
 }
 
 func NewRouter(controllers []Controller) *mux.Router {
-	//todo check for no router, create default4
+	//todo check for no router, create default
 	log.Info().Int("count", len(controllers)).Msg("creating controllers...")
 	mux := mux.NewRouter()
 	for _, c := range controllers {
 		c.Mount(mux)
 	}
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	originsOk := handlers.AllowedOrigins([]string{"*"}) // TODO env
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS", "DELETE"})
+
+	cors := handlers.CORS(originsOk, headersOk, methodsOk)
+	mux.Use(cors)
 	return mux
 }
 
