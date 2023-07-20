@@ -21,6 +21,7 @@ type Route interface {
 }
 
 type Server struct {
+	debug     bool
 	providers []any
 }
 
@@ -53,8 +54,14 @@ func AsComponent[T any](f any, paramTags string, resultTags string) any {
 	)
 }
 
-func NewServer() *Server {
-	return &Server{}
+func NewServer(debug ...bool) *Server {
+	db := false
+	if len(debug) > 0 {
+		db = debug[0]
+	}
+	return &Server{
+		debug: db,
+	}
 }
 
 func (s *Server) Run() {

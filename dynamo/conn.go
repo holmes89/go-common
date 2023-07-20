@@ -196,7 +196,7 @@ func (conn *Conn[T]) Create(ctx context.Context, r T) (T, error) {
 		return r, errors.New("failed to insert ")
 	}
 
-	fmt.Printf("%+v\n", rs)
+	fmt.Printf("table:%s\npk:%s\nsk:%s", conn.conf.TableName, r.PK(), r.SK(nil))
 
 	params := &dynamodb.PutItemInput{
 		Item:      rs,
