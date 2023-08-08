@@ -139,7 +139,16 @@ func (s *APIGatewayHandler) Handle(ctx context.Context, request core.SwitchableA
 	if debug := os.Getenv("DEBUG"); debug != "" {
 		fmt.Println(request.Version1().Path)
 	}
-	return s.adapter.ProxyWithContext(uctx, request)
+
+	resp, err := s.adapter.ProxyWithContext(uctx, request)
+	origin, ok := request.Version1().Headers["Origin"]
+	if ok {
+		// TODO check origin
+		resp.Version1().Headers["Access-Control-Allow-Origin"] = origin
+	} else {
+		log.Warn().Msg("missing origin")
+	}
+	return resp, err
 }
 
 func function(h LambdaHandler) {
