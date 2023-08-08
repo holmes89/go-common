@@ -197,7 +197,7 @@ func NewRouter(controllers []Controller) *mux.Router {
 	for _, c := range controllers {
 		c.Mount(mux)
 	}
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization", "Origin"})
 	originsOk := handlers.AllowedOrigins([]string{"*"}) // TODO env
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS", "DELETE"})
 
