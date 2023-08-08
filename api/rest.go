@@ -198,11 +198,10 @@ func NewRouter(controllers []Controller) *mux.Router {
 		c.Mount(mux)
 	}
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
-	// originsOk := handlers.AllowedOrigins([]string{"*"}) // TODO env
+	originsOk := handlers.AllowedOrigins([]string{"*"}) // TODO env
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS", "DELETE"})
 
-	// cors := handlers.CORS(originsOk, headersOk, methodsOk)
-	cors := handlers.CORS(headersOk, methodsOk)
+	cors := handlers.CORS(originsOk, headersOk, methodsOk)
 	mux.Use(cors)
 	return mux
 }
